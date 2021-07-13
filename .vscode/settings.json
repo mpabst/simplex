@@ -1,0 +1,9 @@
+{
+  "prolog.executablePath": "/opt/swipl-8.2.4/installed/bin/swipl",
+  "prolog.format.tabSize": 2,
+  "prolog.linter.run": "never",
+  "prolog.terminal.runtimeArgs": [
+  
+  ],
+  "prolog.format.enabled": false
+}
