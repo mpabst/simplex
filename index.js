@@ -1,3 +1,5 @@
+import { h } from 'https://unpkg.com/snabbdom@3.0.3?module'
+
 let session
 
 async function init() {
@@ -6,28 +8,40 @@ async function init() {
   let src = await resp.text()
 
   session = pl.create()
-  session.consult(src, {success: console.log, error: console.error})
-
-  query('process_tick.')
+  await consult(src)
+  await tick()
 }
 
-// these should all really be async, but ah, fire and foreget for now
-function query(q, { success = console.log, error = console.error } = {}) {
-  session.query(q, { success, error })
-  answer()
-}
-
-function answer() {
-  session.answer({
-    success: console.log,
-    error: console.error,
-    fail: console.error,
-    limit: console.error
+async function answer() {
+  return new Promise((resolve, reject) => {
+    session.answer({
+      success: resolve,
+      error: reject,
+      fail: reject,
+      limit: reject
+    })
   })
 }
 
-// function event(ev) {
-//   query(`write_event(${ev.target.id}, ${ev.type}).`)
-// }
+async function consult(src) {
+  return new Promise((success, error) => {
+    session.consult(src, { success, error })
+  })
+}
+
+async function event(ev) {
+  await query(`write_event(${ev.target.id}, ${ev.type}).`)
+  await tick()
+}
+
+async function query(q) {
+  return new Promise((success, error) => session.query(q, { success , error }))
+}
+
+async function tick() {
+  await query('process_tick(Html).')
+  let html = await answer()
+  console.log(html)
+}
 
 init()

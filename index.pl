@@ -1,45 +1,33 @@
-:- use_module(library(dom)).
 :- use_module(library(lists)).
 
-index_html(UL) :-
+index_html(Root) :-
   G = graph,
-  create(ul, UL),
-  add_button(UL),
-  quad(G, S, a, todo),
-  quad(G, S, label, O),
-  todos_html(UL, O).
+  findall(O, (
+    quad(G, S, a, todo),
+    quad(G, S, label, O) 
+  ), L),
+  todos_html(L, Todos),
+  button(B),
+  Root = [ B, h(ul, [], Todos) ].
 
-add_button(UL) :-
-  create(button, B),
-  bind(B, click, _, write_event(button, click)),
-  append_child(UL, B).
+button(B) :-
+  B = h(button, [id('create-todo'), on(click)]).
 
-todos_html(_, []).
-todos_html(UL, [L|Labels]) :-
-  create(li, LI),
-  html(LI, L),
-  append_child(UL, LI),
-  todos_html(UL, Labels).
-
-flatten([]) --> [], !.
-flatten([A|T]) --> { \+is_list(A) }, [A], !, flatten(T).
-flatten([A|T]) --> flatten(A), flatten(T).
+todos_html([], []).
+todos_html([HI|TI], [HO|TO]) :-
+  HO = h(li, [], [HI]),
+  todos_html(TI, TO).
 
 :- dynamic(quad/4).
 quad(graph, subj, a, todo).
-quad(graph, subj, label, "something").
-quad(graph, subj, label, "something else").
+quad(graph, subj, label, 'something').
+quad(graph, subj, label, 'something else').
 
 quad(graph, subj2, a, todo).
-quad(graph, subj2, label, "subj2").
-
-:- dynamic(to_assert/1).
-:- dynamic(to_retract/1).
+quad(graph, subj2, label, 'subj2').
 
 :- dynamic(worklist/1).
-% TODO: make all reactors /1, and have them emit the next write;
-% special case commit?
-worklist([commit, process_events, render, write_next_tick]).
+worklist([init, process_events, render]).
 
 :- dynamic(tick/1).
 tick(0).
@@ -47,68 +35,69 @@ tick(0).
 % event(Tick, Id, Type)
 :- dynamic(event/3).
 
-schedule_write([]).
-schedule_write([H|T]) :-
-  H = to_assert(A),
-  assertz(to_assert(A)),
-  schedule_write(T).
-schedule_write([H|T]) :-
-  H = to_retract(R),
-  assertz(to_retract(R)),
-  schedule_write(T).
+% rendering(Tick, Html)
+:- dynamic(rendering/2).
 
 next_tick(N) :-
   this_tick(T),
   N is T + 1.
 
-% fold into commit/0?
-write_next_tick :-
+init(A, R) :-
   next_tick(N),
-  schedule_write([to_assert(tick(N))]).
-
-commit :-
-  to_assert(A),
-  asserta(A),
-  retract(to_assert(A)).
-commit :-
-  to_retract(R),
-  retract(R),
-  retract(to_retract(R)).
+  A = [tick(N)],
+  R = [].
 
 this_tick(This) :-
   findall(Tick, tick(Tick), L),
   max_list(L, This).
 
-insert_todo :-
+insert_todo(A, R) :-
   next_tick(N),
-  schedule_write([to_assert(quad(graph, subj, label, N))]).
+  A = [quad(graph, subj, label, N)],
+  R = [].
 
 event_handler(button, click, insert_todo).
 
-process_events :-
-  this_tick(T),
-  event(T, Id, Type),
-  event_handler(Id, Type, H),
-  call(H).
+process_events(A, R) :-
+  (this_tick(T), event(T, Id, Type)) -> 
+    event_handler(Id, Type, H),
+    call(H, A, R)
+    ;
+    A = [], R = [].
 
 write_event(Id, Type) :-
   next_tick(N),
-  schedule_write([to_assert(event(N, Id, Type))]),
-  process_tick.
+  write_assertions([event(N, Id, Type)]).
 
-render :-
-  index_html(Rendered),
-  get_by_id(root, Root),
-  html(Root, Rendered).
+render(A, R) :-
+  index_html(Html),
+  this_tick(N),
+  A = [rendering(N, Html)],
+  R = [].
+
+write_assertions([]).
+write_assertions([H|T]) :-
+  assertz(H),
+  write_assertions(T).
+
+write_retractions([]).
+write_retractions([H|T]) :-
+  retract(H),
+  write_retractions(T).
 
 work([]).
-work([P|T]) :-
-  call(P),
+work([H|T]) :-
+  call(H, A, R),
+  % call these now to make writes visible to later listeners
+  write_assertions(A),
+  write_retractions(R),
   work(T).
 
-process_tick :-
+process_tick(Html) :-
   worklist(L),
-  work(L).
+  work(L),
+  this_tick(N),
+  rendering(N, Html).
 
 bench(0).
 bench(N) :-
