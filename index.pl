@@ -1,17 +1,18 @@
 :- use_module(library(lists)).
 
-index_html(Root) :-
+index_html(Html) :-
   G = graph,
   findall(O, (
     quad(G, S, a, todo),
     quad(G, S, label, O) 
   ), L),
+  this_tick(N),
   todos_html(L, Todos),
   button(B),
-  Root = [ B, h(ul, [], Todos) ].
+  Html = h(div, [], [ h(div, [], [N]), B, h(ul, [], Todos) ]).
 
 button(B) :-
-  B = h(button, [id('create-todo'), on(click)]).
+  B = h(button, [id('create-todo'), on(click)], ['new todo']).
 
 todos_html([], []).
 todos_html([HI|TI], [HO|TO]) :-
@@ -52,11 +53,11 @@ this_tick(This) :-
   max_list(L, This).
 
 insert_todo(A, R) :-
-  next_tick(N),
+  this_tick(N),
   A = [quad(graph, subj, label, N)],
   R = [].
 
-event_handler(button, click, insert_todo).
+event_handler('create-todo', click, insert_todo).
 
 process_events(A, R) :-
   (this_tick(T), event(T, Id, Type)) -> 
