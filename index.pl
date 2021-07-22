@@ -1,31 +1,21 @@
 :- use_module(library(lists)).
 
-index_html(Html) :-
-  G = graph,
-  findall(O, (
-    quad(G, S, a, todo),
-    quad(G, S, label, O) 
-  ), L),
-  this_tick(N),
-  todos_html(L, Todos),
-  button(B),
-  Html = h(div, [], [ h(div, [], [N]), B, h(ul, [], Todos) ]).
-
-button(B) :-
-  B = h(button, [id('create-todo'), on(click)], ['new todo']).
-
-todos_html([], []).
-todos_html([HI|TI], [HO|TO]) :-
-  HO = h(li, [], [HI]),
-  todos_html(TI, TO).
-
 :- dynamic(quad/4).
-quad(graph, subj, a, todo).
-quad(graph, subj, label, 'something').
-quad(graph, subj, label, 'something else').
+quad(Commit, S, P, O) :-
+  assertions(Commit, A),
+  once(quad(A, S, P, O)).
 
-quad(graph, subj2, a, todo).
-quad(graph, subj2, label, 'subj2').
+quad(Commit, S, P, O) :-
+  retractions(Commit, R),
+  once((quad(R, S, P, O), fail)).
+
+quad(Commit, S, P, O) :-
+  parent(Commit, Pa),
+  once(quad(Pa, S, P, O)).
+
+quad(G, S, P, O) :-
+  head(G, Commit),
+  quad(Commit, S, P, O).
 
 :- dynamic(worklist/1).
 worklist([init, process_events, render]).
@@ -51,13 +41,6 @@ init(A, R) :-
 this_tick(This) :-
   findall(Tick, tick(Tick), L),
   max_list(L, This).
-
-insert_todo(A, R) :-
-  this_tick(N),
-  A = [quad(graph, subj, label, N)],
-  R = [].
-
-event_handler('create-todo', click, insert_todo).
 
 process_events(A, R) :-
   (this_tick(T), event(T, Id, Type)) -> 
