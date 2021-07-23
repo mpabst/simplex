@@ -27,9 +27,14 @@ create_todo(A, R) :-
 
 event_handler('create-todo', click, create_todo).
 
-quad(ass1, subj, a, todo).
-quad(ass1, subj, label, 'something').
-quad(ass1, subj, label, 'something else').
+quad(assert0, subj, a, todo).
+quad(assert0, subj, label, 'something').
+quad(assert0, subj, label, 'something else').
 
-quad(ass1, subj2, a, todo).
-quad(ass1, subj2, label, 'subj2').
+quad(assert0, subj2, a, todo).
+quad(assert0, subj2, label, 'subj2').
+
+quad(commit0, commit0, a, commit).
+quad(commit0, commit0, assertions, assert0).
+
+quad(heads, todos, head, commit0).

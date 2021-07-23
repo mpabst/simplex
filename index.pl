@@ -17,6 +17,18 @@ quad(G, S, P, O) :-
   head(G, Commit),
   quad(Commit, S, P, O).
 
+assertions(Commit, A) :-
+  quad(Commit, Commit, assertions, A).
+
+retractions(Commit, R) :-
+  quad(Commit, Commit, retractions, A).
+
+parent(Commit, P) :-
+  quad(Commit, Commit, parent, P).
+
+head(G, Commit) :-
+  quad(heads, G, head, Commit).
+
 :- dynamic(worklist/1).
 worklist([init, process_events, render]).
 
@@ -59,22 +71,75 @@ render(A, R) :-
   A = [rendering(N, Html)],
   R = [].
 
-write_assertions([]).
-write_assertions([H|T]) :-
-  assertz(H),
-  write_assertions(T).
+% sub_graph(_, [], []).
+% sub_graph(NewG, [quad(G, S, P, O)|TI], [HO|TO]) :-
+%   HO = quad(NewG, S, P, O),
+%   TO = sub_graph(NewG, TI, TO).
 
-write_retractions([]).
-write_retractions([H|T]) :-
-  retract(H),
-  write_retractions(T).
+tick_graph(G, Type, R, Name) :-
+  this_tick(N),
+  number_chars(N, NC),
+  atom_chars(G, Gs),
+  append([Gs, "/", Type, "@", NC, "#", R], String),
+  atom_chars(Name, String).
+
+% class decl
+commit(N, G) :-
+  tick_graph(G, N, "commit", T),
+  assertz(T, T, a, commit).
+
+% assertions ref
+commit(N, G) :-
+  tick_graph(G, N, "commit", C)
+  tick_graph(G, N, "assert", A),
+  once(quad(A, _, _, _)),
+  assertz(quad(C, C, assertions, A)).
+
+% retractions ref
+commit(N, G) :-
+  tick_graph(G, N, "commit", C)
+  tick_graph(G, N, "retract", R),
+  once(quad(R, _, _, _)),
+  assertz(quad(C, C, retractions, R)).
+
+% parent ref, update head
+commit(N, G) :-
+  head(G, H),
+  tick_graph(G, N, "commit", C),
+  assertz(quad(C, C, parent, H)),
+  assertz(quad(heads, G, head, C)),
+  retract(quad(heads, G, head, H)).
+
+commit(_, [], []).
+
+commit(N, A, R) :-
+  sort(A, AS),
+  sort(R, RS),
+  commit(N, AS, RS, []).
+
+% commits proper, after A & R are both done
+commit(N, [], [], G) :-
+  sort(G, S),
+  maplist(commit(N), G).
+
+% retractions, after assertions
+commit(N, [], [quad(G, S, P, O)|RT], Gs) :-
+  tick_graph(G, "retract", N, T),
+  assertz(quad(T, S, P, O)),
+  commit(N, [], RT, [G|Gs]).
+
+% assertions
+commit(N, [quad(G, S, P, O)|AT], R, Gs) :-
+  tick_graph(G, "assert", N, T),
+  assertz(quad(T, S, P, O)),
+  commit(N, AT, R, [G|Gs]).
 
 work([]).
 work([H|T]) :-
   call(H, A, R),
-  % call these now to make writes visible to later listeners
-  write_assertions(A),
-  write_retractions(R),
+  % commit now to make writes visible to later listeners
+  atom_chars(H, N),
+  commit(N, A, R),
   work(T).
 
 process_tick(Html) :-
