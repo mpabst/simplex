@@ -63,18 +63,13 @@ process_events(A, R) :-
 
 write_event(Id, Type) :-
   next_tick(N),
-  write_assertions([event(N, Id, Type)]).
+  assertz(event(N, Id, Type)).
 
 render(A, R) :-
   index_html(Html),
   this_tick(N),
   A = [rendering(N, Html)],
   R = [].
-
-% sub_graph(_, [], []).
-% sub_graph(NewG, [quad(G, S, P, O)|TI], [HO|TO]) :-
-%   HO = quad(NewG, S, P, O),
-%   TO = sub_graph(NewG, TI, TO).
 
 tick_graph(G, Type, R, Name) :-
   this_tick(N),
@@ -90,14 +85,14 @@ commit(N, G) :-
 
 % assertions ref
 commit(N, G) :-
-  tick_graph(G, N, "commit", C)
+  tick_graph(G, N, "commit", C),
   tick_graph(G, N, "assert", A),
   once(quad(A, _, _, _)),
   assertz(quad(C, C, assertions, A)).
 
 % retractions ref
 commit(N, G) :-
-  tick_graph(G, N, "commit", C)
+  tick_graph(G, N, "commit", C),
   tick_graph(G, N, "retract", R),
   once(quad(R, _, _, _)),
   assertz(quad(C, C, retractions, R)).
@@ -120,7 +115,7 @@ commit(N, A, R) :-
 % commits proper, after A & R are both done
 commit(N, [], [], G) :-
   sort(G, S),
-  maplist(commit(N), G).
+  maplist(commit(N), S).
 
 % retractions, after assertions
 commit(N, [], [quad(G, S, P, O)|RT], Gs) :-
