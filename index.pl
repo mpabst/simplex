@@ -1,27 +1,27 @@
 :- use_module(library(lists)).
 
 :- dynamic(quad/4).
-quad(Commit, S, P, O) :-
-  assertions(Commit, A),
-  once(quad(A, S, P, O)).
+% quad(Commit, S, P, O) :-
+%   assertions(Commit, A),
+%   once(quad(A, S, P, O)).
 
-quad(Commit, S, P, O) :-
-  retractions(Commit, R),
-  once((quad(R, S, P, O), fail)).
+% quad(Commit, S, P, O) :-
+%   retractions(Commit, R),
+%   once((quad(R, S, P, O), fail)).
 
-quad(Commit, S, P, O) :-
-  parent(Commit, Pa),
-  once(quad(Pa, S, P, O)).
+% quad(Commit, S, P, O) :-
+%   parent(Commit, Pa),
+%   once(quad(Pa, S, P, O)).
 
-quad(G, S, P, O) :-
-  head(G, Commit),
-  quad(Commit, S, P, O).
+% quad(G, S, P, O) :-
+%   head(G, Commit),
+%   quad(Commit, S, P, O).
 
 assertions(Commit, A) :-
   quad(Commit, Commit, assertions, A).
 
 retractions(Commit, R) :-
-  quad(Commit, Commit, retractions, A).
+  quad(Commit, Commit, retractions, R).
 
 parent(Commit, P) :-
   quad(Commit, Commit, parent, P).
@@ -71,39 +71,41 @@ render(A, R) :-
   A = [rendering(N, Html)],
   R = [].
 
-tick_graph(G, Type, R, Name) :-
+% tick_graph_iri(sym+, sym+, sym+, sym-) is det
+tick_graph_iri(G, Type, Reactor, Name) :-
   this_tick(N),
   number_chars(N, NC),
   atom_chars(G, Gs),
-  append([Gs, "/", Type, "@", NC, "#", R], String),
+  append([Gs, "/", Type, "@", NC, "#", Reactor], String),
   atom_chars(Name, String).
 
 % class decl
 commit(N, G) :-
-  tick_graph(G, N, "commit", T),
-  assertz(T, T, a, commit).
+  tick_graph_iri(G, N, "commit", T),
+  assertz(quad(T, T, a, commit)).
 
 % assertions ref
 commit(N, G) :-
-  tick_graph(G, N, "commit", C),
-  tick_graph(G, N, "assert", A),
+  tick_graph_iri(G, N, "commit", C),
+  tick_graph_iri(G, N, "assert", A),
   once(quad(A, _, _, _)),
   assertz(quad(C, C, assertions, A)).
 
 % retractions ref
 commit(N, G) :-
-  tick_graph(G, N, "commit", C),
-  tick_graph(G, N, "retract", R),
+  tick_graph_iri(G, N, "commit", C),
+  tick_graph_iri(G, N, "retract", R),
   once(quad(R, _, _, _)),
   assertz(quad(C, C, retractions, R)).
 
 % parent ref, update head
 commit(N, G) :-
-  head(G, H),
-  tick_graph(G, N, "commit", C),
-  assertz(quad(C, C, parent, H)),
-  assertz(quad(heads, G, head, C)),
-  retract(quad(heads, G, head, H)).
+  tick_graph_iri(G, N, "commit", C),
+  head(G, H) -> (
+    assertz(quad(C, C, parent, H)),
+  	assertz(quad(heads, G, head, C)),
+  	retract(quad(heads, G, head, H))
+  ) ; assertz(quad(heads, G, head, C)).
 
 commit(_, [], []).
 
@@ -113,29 +115,30 @@ commit(N, A, R) :-
   commit(N, AS, RS, []).
 
 % commits proper, after A & R are both done
-commit(N, [], [], G) :-
+commit(Reactor, [], [], G) :-
   sort(G, S),
-  maplist(commit(N), S).
+  maplist(commit(Reactor), S).
 
 % retractions, after assertions
-commit(N, [], [quad(G, S, P, O)|RT], Gs) :-
-  tick_graph(G, "retract", N, T),
-  assertz(quad(T, S, P, O)),
-  commit(N, [], RT, [G|Gs]).
+commit(Reactor, [], [quad(G, S, P, O)|Retractions], Graphs) :-
+  tick_graph_iri(G, "retract", Reactor, TickGraph),
+  assertz(quad(TickGraph, S, P, O)),
+  commit(Reactor, [], Retractions, [G|Graphs]).
 
 % assertions
-commit(N, [quad(G, S, P, O)|AT], R, Gs) :-
-  tick_graph(G, "assert", N, T),
-  assertz(quad(T, S, P, O)),
-  commit(N, AT, R, [G|Gs]).
+% commit(string+, [quad/4]+, [quad/4]+, [string]+) is undef
+commit(Reactor, [quad(G, S, P, O)|Assertions], Retractions, Graphs) :-
+  tick_graph_iri(G, "assert", Reactor, TickGraph),
+  assertz(quad(TickGraph, S, P, O)),
+  commit(Reactor, Assertions, Retractions, [G|Graphs]).
 
 work([]).
-work([H|T]) :-
-  call(H, A, R),
+work([Reactor|Tail]) :-
+  call(Reactor, Assertions, Retractions),
+  atom_chars(Reactor, ReactorName),
   % commit now to make writes visible to later listeners
-  atom_chars(H, N),
-  commit(N, A, R),
-  work(T).
+  commit(ReactorName, Assertions, Retractions),
+  work(Tail).
 
 process_tick(Html) :-
   worklist(L),
