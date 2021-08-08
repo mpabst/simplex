@@ -71,78 +71,77 @@ render(A, R) :-
   A = [rendering(N, Html)],
   R = [].
 
-% tick_graph_iri(sym+, sym+, sym+, sym-) is det
-tick_graph_iri(G, Type, Reactor, Name) :-
-  this_tick(N),
-  number_chars(N, NC),
-  atom_chars(G, Gs),
-  append([Gs, "/", Type, "@", NC, "#", Reactor], String),
-  atom_chars(Name, String).
+% tick_graph_iri(sym+, char[]+, sym+, sym-) is det
+tick_graph_iri(Graph, ReactorName, Type, IRI) :-
+  this_tick(Tick),
+  number_chars(Tick, TickChars),
+  atom_chars(Graph, GraphChars),
+  L = [GraphChars, "@", TickChars, "#", ReactorName, "/", Type],
+  reverse(L, R),
+  append(R, A),
+  atom_chars(IRI, A).
 
-% class decl
-commit(N, G) :-
-  tick_graph_iri(G, N, "commit", T),
-  assertz(quad(T, T, a, commit)).
+write_commit_decl(ReactorName, Graph) :-
+  tick_graph_iri(Graph, ReactorName, "commit", Commit),
+  assertz(quad(Commit, Commit, a, commit)).
 
-% assertions ref
-commit(N, G) :-
-  tick_graph_iri(G, N, "commit", C),
-  tick_graph_iri(G, N, "assert", A),
-  once(quad(A, _, _, _)),
-  assertz(quad(C, C, assertions, A)).
+write_assertions_ref(ReactorName, Graph) :-
+  % write("assertions ref"),
+  tick_graph_iri(Graph, ReactorName, "commit", Commit),
+  tick_graph_iri(Graph, ReactorName, "assert", Assertions),
+  assertz(quad(Commit, Commit, assertions, Assertions)).
 
-% retractions ref
-commit(N, G) :-
-  tick_graph_iri(G, N, "commit", C),
-  tick_graph_iri(G, N, "retract", R),
-  once(quad(R, _, _, _)),
-  assertz(quad(C, C, retractions, R)).
+write_retractions_ref(ReactorName, Graph) :-
+  tick_graph_iri(Graph, ReactorName, "commit", Commit),
+  tick_graph_iri(Graph, ReactorName, "retract", Retractions),
+  assertz(quad(Commit, Commit, retractions, Retractions)).
 
-% parent ref, update head
-commit(N, G) :-
-  tick_graph_iri(G, N, "commit", C),
-  head(G, H) -> (
-    assertz(quad(C, C, parent, H)),
-  	assertz(quad(heads, G, head, C)),
-  	retract(quad(heads, G, head, H))
-  ) ; assertz(quad(heads, G, head, C)).
+% case where there is already a head
+update_head(ReactorName, Graph) :-
+  tick_graph_iri(Graph, ReactorName, "commit", Commit),
+  head(Graph, Head),
+  assertz(quad(Commit, Commit, parent, Head)),
+  assertz(quad(heads, Graph, head, Commit)),
+  retract(quad(heads, Graph, head, Head)).
 
-commit(_, [], []).
+% case where there isn't
+update_head(ReactorName, Graph) :-
+  tick_graph_iri(Graph, ReactorName, "commit", Commit),
+  assertz(quad(heads, Graph, head, Commit)).
 
-commit(N, A, R) :-
-  sort(A, AS),
-  sort(R, RS),
-  commit(N, AS, RS, []).
+write_retractions(_, [], []).
+write_retractions(ReactorName, [quad(G, S, P, O)|Retractions], Graphs) :-
+  tick_graph_iri(G, ReactorName, "retract", RetractionsGraph),
+  assertz(quad(RetractionsGraph, S, P, O)),
+  Graphs = [G|RGraphs],
+  write_retractions(ReactorName, Retractions, RGraphs).
 
-% commits proper, after A & R are both done
-commit(Reactor, [], [], G) :-
-  sort(G, S),
-  maplist(commit(Reactor), S).
+write_assertions(_, [], []).
+write_assertions(ReactorName, [quad(G, S, P, O)|Assertions], Graphs)  :-
+  tick_graph_iri(G, ReactorName, "assert", AssertionsGraph),
+  assertz(quad(AssertionsGraph, S, P, O)),
+  Graphs = [G|RGraphs],
+  write_assertions(ReactorName, Assertions, RGraphs).
 
-% retractions, after assertions
-commit(Reactor, [], [quad(G, S, P, O)|Retractions], Graphs) :-
-  tick_graph_iri(G, "retract", Reactor, TickGraph),
-  assertz(quad(TickGraph, S, P, O)),
-  commit(Reactor, [], Retractions, [G|Graphs]).
+do_commit(ReactorName, Assertions, Retractions) :-
+  write_assertions(ReactorName, Assertions, AssertionGraphs),
+  write_retractions(ReactorName, Retractions, RetractionGraphs),
+  maplist(write_assertions_ref(ReactorName), AssertionGraphs),
+  maplist(write_retractions_ref(ReactorName), RetractionGraphs),
+  append(AssertionGraphs, RetractionGraphs, Graphs),
+  sort(Graphs, Sorted),
+  maplist(write_commit(ReactorName), Sorted),
+  maplist(update_head(ReactorName), Sorted).
 
-% assertions
-% commit(string+, [quad/4]+, [quad/4]+, [string]+) is undef
-commit(Reactor, [quad(G, S, P, O)|Assertions], Retractions, Graphs) :-
-  tick_graph_iri(G, "assert", Reactor, TickGraph),
-  assertz(quad(TickGraph, S, P, O)),
-  commit(Reactor, Assertions, Retractions, [G|Graphs]).
-
-work([]).
-work([Reactor|Tail]) :-
+work(Reactor) :-
   call(Reactor, Assertions, Retractions),
   atom_chars(Reactor, ReactorName),
   % commit now to make writes visible to later listeners
-  commit(ReactorName, Assertions, Retractions),
-  work(Tail).
+  do_commit(ReactorName, Assertions, Retractions).
 
 process_tick(Html) :-
   worklist(L),
-  work(L),
+  maplist(work, L),
   this_tick(N),
   rendering(N, Html).
 
