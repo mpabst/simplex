@@ -7,6 +7,8 @@ import {
 } from 'https://unpkg.com/snabbdom@3.0.3?module'
 
 class Engine {
+  static files = ['iris', 'work', 'commit', 'query']
+
   patch = initSnabbdom([propsModule, styleModule, eventListenersModule])
   container = document.getElementById('container')
 
@@ -14,12 +16,13 @@ class Engine {
   vDOM
 
   async init() {
-    let resp = await fetch('index.pl')
-    if (!resp.ok) console.error(resp)
-    let src = await resp.text()
-
     this.session = pl.create()
-    await this.consult(src)
+    for (const file of this.constructor.files) {
+      let resp = await fetch(file + '.pl')
+      if (!resp.ok) console.error(resp)
+      let src = await resp.text()
+      await this.consult(src)  
+    }
     await this.tick()
   }
 
