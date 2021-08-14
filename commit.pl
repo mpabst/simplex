@@ -1,46 +1,80 @@
 :- use_module(library(lists)).
 
-declare_commit(Reactor, Graph) :-
-  meta_iri(Graph, Reactor, Meta),
-  assertz(quint(Meta, Meta, a, commit, true)),
-  data_iri(Graph, Reactor, Data),
-  assertz(quint(Meta, Meta, data, Data, true)).
+collect_graphs(Patch, Graphs) :-
+  collect_graphs_(Patch, [], Unsorted),
+  sort(Unsorted, Graphs).
 
-declare_parent(_, Graph) :- \+head(Graph, _).
-declare_parent(Reactor, Graph) :-
+collect_graphs_([], Acc, Graphs) :- Acc = Graphs.
+collect_graphs_([quint(G, _, _, _, _)|Patch], Acc, Graphs) :-
+  collect_graphs_(Patch, [G|Acc], Graphs).
+
+commit_meta(Reactor, Graphs, Assertions, Retractions) :-
+  commit_meta_(Reactor, Graphs, [], Assertions, [], Retractions).
+
+commit_meta_(_, [], AAcc, AOut, RAcc, ROut) :-
+  AAcc = AOut,
+  RAcc = ROut.
+commit_meta_(Reactor, [G|Graphs], AAcc, AOut, RAcc, ROut) :-
+  declare_commit(Reactor, G, CommitA),
+  declare_parent(Reactor, G, ParentA),
+  declare_ref(Reactor, G, RefA, RefR),
+  append([AAcc, CommitA, ParentA, RefA], ANext),
+  append([RAcc, RefR], RNext),
+  commit_meta_(Reactor, Graphs, ANext, AOut, RNext, ROut).
+
+declare_commit(Reactor, Graph, Assertions) :-
+  meta_iri(Graph, Reactor, Meta),
+  data_iri(Graph, Reactor, Data),
+  Assertions = [
+    quint(Meta, Meta, a, commit, true),
+    quint(Meta, Meta, data, Data, true)
+  ].
+
+declare_parent(_, Graph, Assertions) :-
+  \+head(Graph, _),
+  Assertions = [].
+declare_parent(Reactor, Graph, Assertions) :-
   head(Graph, Head),
   meta_iri(Graph, Reactor, Meta),
-  assertz(quint(Meta, Meta, parent, Head, true)).
+  Assertions = [quint(Meta, Meta, parent, Head, true)].
 
 % TODO: maintain a patch log for the heads graph; we should only have one IRI of
 % mutable state, the current head of the heads graph.
 % no parent
-update_head(Reactor, Graph) :-
+declare_ref(Reactor, Graph, Assertions, Retractions) :-
   \+head(Graph, _),
   meta_iri(Graph, Reactor, Meta),
-  assertz(quint(heads, Graph, head, Meta, true)).
+  Assertions = [quint(heads, Graph, head, Meta, true)],
+  Retractions = [].
 % has parent
-update_head(Reactor, Graph) :-
+declare_ref(Reactor, Graph, Assertions, Retractions) :-
   head(Graph, Head),
   meta_iri(Graph, Reactor, Meta),
+  Assertions = [
+    quint(Meta, Meta, parent, Head, true),
+    quint(heads, Graph, head, Meta, true)
+  ],
   % just retract the old ref for now
-  retract(quint(heads, Graph, head, Head, true)),
-  assertz(quint(Meta, Meta, parent, Head, true)),
-  assertz(quint(heads, Graph, head, Meta, true)).
-
-write_patch_data(Reactor, Patch, Graphs) :-
-  write_patch_data_(Reactor, Patch, [], Graphs).
+  Retractions = [quint(heads, Graph, head, Head, true)].
 
 % TODO: omit inapplicable quints? retractions of currently unasserted data, m.m.
-write_patch_data_(_, [], Accum, Graphs) :- Accum = Graphs.
-write_patch_data_(Reactor, [quint(G, S, P, O, V)|Patch], Accum, Graphs) :-
-  data_iri(G, Reactor, Data),
-  assertz(quint(Data, S, P, O, V)),
-  write_patch_data_(Reactor, Patch, [G|Accum], Graphs).
-
 do_commit(Reactor, Patch) :-
-  write_patch_data(Reactor, Patch, Graphs),
-  sort(Graphs, Sorted),
-  maplist(declare_commit(Reactor), Sorted),
-  % maplist(declare_parent(Reactor), Sorted),
-  maplist(update_head(Reactor), Sorted).
+  full_commit(Reactor, Patch, Assertions, Retractions),
+  !,
+  maplist(retract, Retractions),
+  maplist(assertz, Assertions).
+
+full_commit(Reactor, Patch, Assertions, Retractions) :-
+  rewrite_graph_terms(Reactor, Patch, Rewritten),
+  collect_graphs(Patch, Graphs),
+  commit_meta(Reactor, Graphs, MetaAssertions, Retractions),
+  append([Rewritten, MetaAssertions], Assertions).
+
+rewrite_graph_terms(Reactor, Patch, Rewritten) :-
+  rewrite_graph_terms_(Reactor, Patch, [], Rewritten).
+
+rewrite_graph_terms_(_, [], Acc, Rewritten) :- Acc = Rewritten.
+rewrite_graph_terms_(Reactor, [quint(G, S, P, O, V)|Patch], Acc, Rewritten) :-
+  data_iri(Reactor, G, Data),
+  RAcc = [quint(Data, S, P, O, V)|Acc],
+  rewrite_graph_terms_(Reactor, Patch, RAcc, Rewritten).
