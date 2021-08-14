@@ -17,7 +17,7 @@ meta_iri(Graph, Reactor, IRI) :-
   atom_chars(IRI, IRIChars).
 
 data_iri(Graph, Reactor, IRI) :-
-  meta_iri_chars(Graph, Reactor, Met),
+  meta_iri_chars(Graph, Reactor, Meta),
   atom_chars('/', Slash),
   L = [Meta, Slash],
   append(L, Chars),
