@@ -1,10 +1,13 @@
 :- use_module(library(lists)).
 
 :- dynamic(worklist/1).
-worklist([init, process_events, render]).
+% worklist([init, process_events, render]).
+worklist([init, foo]).
 
-:- dynamic(tick/1).
-tick(0).
+foo(P) :-
+  this_tick(N),
+  M is N - 1,
+  P = [quint(bar, baz, quux, M, false), quint(bar, baz, quux, N, true)].
 
 % event(Tick, Id, Type)
 :- dynamic(event/3).
@@ -12,24 +15,27 @@ tick(0).
 % rendering(Tick, Html)
 :- dynamic(rendering/2).
 
+init(P) :-
+  next_tick(N),
+  M is N - 1,
+  P = [
+    quint(system, tick, val, M, false),
+    quint(system, tick, val, N, true)
+  ].
+
 next_tick(N) :-
   this_tick(T),
   N is T + 1.
 
-init(P) :-
-  next_tick(N),
-  P = [tick(N)].
-
-this_tick(This) :-
-  findall(Tick, tick(Tick), L),
-  max_list(L, This).
+this_tick(This) :- q(system, tick, val, This).
+this_tick(This) :- \+q(system, tick, val, _), This = 0.
 
 process_events(P) :-
-  (this_tick(T), event(T, Id, Type)) -> (
-    event_handler(Id, Type, H),
-    call(H, P)
-  ) ;
-    P = [].
+  this_tick(T),
+  event(T, Id, Type),
+  event_handler(Id, Type, H),
+  call(H, P).
+process_events(P) :- P = [].
 
 write_event(Id, Type) :-
   next_tick(N),
@@ -45,11 +51,12 @@ work(Reactor) :-
   % commit now to make writes visible to later listeners
   do_commit(Reactor, Patch).
 
-process_tick(Html) :-
+process_tick :-
+% process_tick(Html) :-
   worklist(L),
-  maplist(work, L),
-  this_tick(N),
-  rendering(N, Html).
+  maplist(work, L).
+  % this_tick(N),
+  % rendering(N, Html).
 
 % bench(0).
 % bench(N) :-
