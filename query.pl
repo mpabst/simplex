@@ -9,17 +9,18 @@ parent(Meta, Parent) :- quint(Meta, Meta, parent, Parent, true).
 
 head(Graph, Meta) :- quint(heads, Graph, head, Meta, true).
 
-retractions(Meta, S, P, O) :- data(Meta, Data), quint(Data, S, P, O, false).
+retractions(Data, S, P, O) :- quint(Data, S, P, O, false).
 
-assertions(Meta, S, P, O) :- data(Meta, Data), quint(Data, S, P, O, true).
+assertions(Data, S, P, O) :- quint(Data, S, P, O, true).
 
-asserted(Meta, S, P, O) :- retractions(Meta, S, P, O), fail.
-asserted(Meta, S, P, O) :- assertions(Meta, S, P, O).
-asserted(Meta, S, P, O) :-
-  data(Meta, Data),
-  % is there a way to avoid restating this 'guard'?
+asserted(Meta, Data, S, P, O) :-
+  retractions(Data, S, P, O), fail
+  ;
+  assertions(Data, S, P, O)
+  ;
   \+quint(Data, S, P, O, _),
   parent(Meta, Parent),
-  asserted(Parent, S, P, O).
+  data(Parent, PData),
+  asserted(Parent, PData, S, P, O).
 
-q(G, S, P, O) :- head(G, Meta), asserted(Meta, S, P, O).
+q(G, S, P, O) :- head(G, Meta), data(Meta, Data), asserted(Meta, Data, S, P, O).
