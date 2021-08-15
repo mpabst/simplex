@@ -1,8 +1,8 @@
 :- use_module(library(lists)).
 
 :- dynamic(worklist/1).
-% worklist([init, process_events, render]).
-worklist([init, foo]).
+% worklist([process_events, render, tick]).
+worklist([foo, tick]).
 
 foo(P) :-
   this_tick(N),
@@ -15,30 +15,23 @@ foo(P) :-
 % rendering(Tick, Html)
 :- dynamic(rendering/2).
 
-init(P) :-
-  next_tick(N),
-  M is N - 1,
+tick(P) :-
+  this_tick(T),
+  S is T + 1,
   P = [
-    quint(system, tick, val, M, false),
-    quint(system, tick, val, N, true)
+    quint(system, tick, val, T, false),
+    quint(system, tick, val, S, true)
   ].
 
-next_tick(N) :-
-  this_tick(T),
-  N is T + 1.
-
-this_tick(This) :- q(system, tick, val, Latest) -> This = Latest ; This = 0.
+this_tick(This) :- q(system, tick, val, This).
 
 process_events(P) :-
   this_tick(T),
   event(T, Id, Type),
   event_handler(Id, Type, H),
   call(H, P).
-process_events(P) :- P = [].
 
-write_event(Id, Type) :-
-  next_tick(N),
-  assertz(event(N, Id, Type)).
+write_event(Id, Type) :- this_tick(N), assertz(event(N, Id, Type)).
 
 render(P) :-
   index_html(Html),
@@ -56,6 +49,13 @@ process_tick :-
   maplist(work, L).
   % this_tick(N),
   % rendering(N, Html).
+
+% initialize zeroth tick - if I just use content hashing for IRIs I can move
+% init/1 back to the first reactor
+quint('system@0#init/', tick, val, 0, true).
+quint('system@0#init', 'system@0#init', a, commit, true).
+quint('system@0#init', 'system@0#init', data, 'system@0#init/', true).
+quint(heads, system, head, 'system@0#init', true).
 
 % bench(0).
 % bench(N) :-
