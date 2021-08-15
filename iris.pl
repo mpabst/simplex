@@ -1,17 +1,9 @@
 :- use_module(library(lists)).
 
-% special case init/1, because it's what increments the tick.
-meta_iri_chars(Graph, init, IRIChars) :-
-  next_tick(N),
-  meta_iri_chars_(N, Graph, init, IRIChars).
-meta_iri_chars(Graph, Reactor, IRIChars) :-
-  Reactor \= init,
-  this_tick(N),
-  meta_iri_chars_(N, Graph, Reactor, IRIChars).
-
 % tick_graph_iri(sym+, sym+, sym-) is det
-meta_iri_chars_(N, Graph, Reactor, IRIChars) :-
-  number_chars(N, TickChars),
+meta_iri_chars(Graph, Reactor, IRIChars) :-
+  this_tick(Tick),
+  number_chars(Tick, TickChars),
   atom_chars(Graph, GraphChars),
   atom_chars(Reactor, ReactorChars),
   % why can't I just inline these as strings into L?
