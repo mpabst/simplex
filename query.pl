@@ -15,6 +15,11 @@ assertions(Meta, S, P, O) :- data(Meta, Data), quint(Data, S, P, O, true).
 
 asserted(Meta, S, P, O) :- retractions(Meta, S, P, O), fail.
 asserted(Meta, S, P, O) :- assertions(Meta, S, P, O).
-asserted(Meta, S, P, O) :- parent(Meta, Parent), asserted(Parent, S, P, O).
+asserted(Meta, S, P, O) :-
+  data(Meta, Data),
+  % is there a way to avoid restating this 'guard'?
+  \+quint(Data, S, P, O, _),
+  parent(Meta, Parent),
+  asserted(Parent, S, P, O).
 
 q(G, S, P, O) :- head(G, Meta), asserted(Meta, S, P, O).

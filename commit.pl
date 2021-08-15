@@ -50,16 +50,14 @@ declare_ref(Reactor, Graph, Assertions, Retractions) :-
 declare_ref(Reactor, Graph, Assertions, Retractions) :-
   head(Graph, Head),
   meta_iri(Graph, Reactor, Meta),
-  Assertions = [
-    quint(Meta, Meta, parent, Head, true),
-    quint(heads, Graph, head, Meta, true)
-  ],
+  Assertions = [quint(heads, Graph, head, Meta, true)],
   % just retract the old ref for now
   Retractions = [quint(heads, Graph, head, Head, true)].
 
 % TODO: omit inapplicable quints? retractions of currently unasserted data, m.m.
 do_commit(Reactor, Patch) :-
   full_commit(Reactor, Patch, Assertions, Retractions),
+  % why is this cut needed?
   !,
   maplist(retract, Retractions),
   maplist(assertz, Assertions).
@@ -75,6 +73,6 @@ rewrite_graph_terms(Reactor, Patch, Rewritten) :-
 
 rewrite_graph_terms_(_, [], Acc, Rewritten) :- Acc = Rewritten.
 rewrite_graph_terms_(Reactor, [quint(G, S, P, O, V)|Patch], Acc, Rewritten) :-
-  data_iri(Reactor, G, Data),
+  data_iri(G, Reactor, Data),
   RAcc = [quint(Data, S, P, O, V)|Acc],
   rewrite_graph_terms_(Reactor, Patch, RAcc, Rewritten).
