@@ -6,23 +6,13 @@ commit_meta(_, [], EAcc, Extra) :- append(EAcc, Extra). % flatten
 commit_meta(Reactor, [G|Graphs], EAcc, Extra) :-
   meta_iri(G, Reactor, Meta),
   data_iri(G, Reactor, Data),
-  declare_commit(G, Meta, Data, E),
-  commit_meta(Reactor, Graphs, [E|EAcc], Extra).
-
-declare_commit(Graph, Meta, Data, Extra) :-
-  (head(Graph, Head) ->
-    (Parent = [
-      quint(Meta, Meta, parent, Head, true),
-      % retract old head ref
-      quint(heads, Graph, head, Head, false)
-    ])
-  ; (Parent = [])),
-
-  Extra = [
-    quint(heads, Graph, head, Meta, true),
+  update_parent(G, Meta, PPatch),
+  E = [
     quint(Meta, Meta, a, commit, true),
-    quint(Meta, Meta, data, Data, true)
-  | Parent ].
+    quint(Meta, Meta, data, Data, true),
+    quint(heads, G, head, Meta, true)
+  | PPatch ],
+  commit_meta(Reactor, Graphs, [E|EAcc], Extra).
 
 % TODO: omit inapplicable quints? retractions of currently unasserted data, m.m.
 do_commit(Reactor, Patch) :-
@@ -51,3 +41,14 @@ process_patch_data(_, [], PAcc, Processed, GAcc, Graphs) :-
 process_patch_data(Reactor, [quint(G, S, P, O, V)|Patch], PAcc, Processed, GAcc, Graphs) :-
   data_iri(G, Reactor, Data),
   process_patch_data(Reactor, Patch, [quint(Data, S, P, O, V)|PAcc], Processed, [G|GAcc], Graphs).
+
+update_parent(Graph, Meta, Patch) :-
+  head(Graph, Head) ->
+    Patch = [
+      % declare our parent
+      quint(Meta, Meta, parent, Head, true),
+      % retract old head ref
+      quint(heads, Graph, head, Head, false)
+    ]
+  % current commit is an orphan
+  ; Patch = [].
