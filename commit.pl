@@ -30,34 +30,25 @@ declare_commit(Reactor, Graph, Assertions) :-
     quint(Meta, Meta, data, Data, true)
   ].
 
-declare_parent(_, Graph, Assertions) :-
-  \+head(Graph, _),
-  Assertions = [].
 declare_parent(Reactor, Graph, Assertions) :-
-  head(Graph, Head),
-  meta_iri(Graph, Reactor, Meta),
-  Assertions = [quint(Meta, Meta, parent, Head, true)].
+  head(Graph, Head) -> (
+    meta_iri(Graph, Reactor, Meta),
+    Assertions = [quint(Meta, Meta, parent, Head, true)]
+  ) ; Assertions = [].
 
-% TODO: maintain a patch log for the heads graph; we should only have one IRI of
-% mutable state, the current head of the heads graph.
-% no parent
 declare_ref(Reactor, Graph, Assertions, Retractions) :-
-  \+head(Graph, _),
   meta_iri(Graph, Reactor, Meta),
   Assertions = [quint(heads, Graph, head, Meta, true)],
-  Retractions = [].
-% has parent
-declare_ref(Reactor, Graph, Assertions, Retractions) :-
-  head(Graph, Head),
-  meta_iri(Graph, Reactor, Meta),
-  Assertions = [quint(heads, Graph, head, Meta, true)],
-  % just retract the old ref for now
-  Retractions = [quint(heads, Graph, head, Head, true)].
+  ( head(Graph, Head) ->
+      Retractions = [quint(heads, Graph, head, Head, true)]
+    ; Retractions = [] ).
 
 % TODO: omit inapplicable quints? retractions of currently unasserted data, m.m.
 do_commit(Reactor, Patch) :-
   full_commit(Reactor, Patch, Assertions, Retractions),
-  % why is this cut needed?
+  % why is this cut needed? probably because of the side effects after it:
+  % prolog does the writes, then backtracks to full_commit, which now gives a
+  % different result. but i don't really know.
   !,
   maplist(retract, Retractions),
   maplist(assertz, Assertions).

@@ -27,8 +27,7 @@ next_tick(N) :-
   this_tick(T),
   N is T + 1.
 
-this_tick(This) :- q(system, tick, val, This).
-this_tick(This) :- \+q(system, tick, val, _), This = 0.
+this_tick(This) :- q(system, tick, val, Latest) -> This = Latest ; This = 0.
 
 process_events(P) :-
   this_tick(T),
