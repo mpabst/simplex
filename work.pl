@@ -2,12 +2,11 @@
 
 :- dynamic(worklist/1).
 % worklist([process_events, render, tick]).
-worklist([foo, tick]).
+worklist([process_events, tick]).
 
-foo(P) :-
+foo([quint(bar, baz, quux, M, false), quint(bar, baz, quux, N, true)]) :-
   this_tick(N),
-  M is N - 1,
-  P = [quint(bar, baz, quux, M, false), quint(bar, baz, quux, N, true)].
+  M is N - 1.
 
 % event(Tick, Id, Type)
 :- dynamic(event/3).
@@ -15,13 +14,12 @@ foo(P) :-
 % rendering(Tick, Html)
 :- dynamic(rendering/2).
 
-tick(P) :-
+tick([
+  quint(system, tick, val, T, false),
+  quint(system, tick, val, S, true)
+]) :-
   this_tick(T),
-  S is T + 1,
-  P = [
-    quint(system, tick, val, T, false),
-    quint(system, tick, val, S, true)
-  ].
+  S is T + 1.
 
 this_tick(This) :- q(system, tick, val, This).
 
@@ -30,23 +28,26 @@ process_events(P) :-
   event(T, Id, Type),
   event_handler(Id, Type, H),
   call(H, P).
+process_events([]).
 
 write_event(Id, Type) :- this_tick(N), assertz(event(N, Id, Type)).
 
-render(P) :-
-  index_html(Html),
-  this_tick(N),
-  P = [rendering(N, Html)].
+% render :-
+%   index_html(Html),
+%   % !,
+%   this_tick(N),
+%   asserta(rendering(N, Html)).
 
 work(Reactor) :-
   call(Reactor, Patch),
   % commit now to make writes visible to later listeners
   do_commit(Reactor, Patch).
 
-process_tick :-
-% process_tick(Html) :-
+% process_tick :-
+process_tick(Html) :-
   worklist(L),
-  maplist(work, L).
+  maplist(work, L),
+  todos(Html).
   % this_tick(N),
   % rendering(N, Html).
 
