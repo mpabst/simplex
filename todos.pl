@@ -1,8 +1,8 @@
 todos(Html) :-
   this_tick(N),
   button(B),
-  quads(todos, subj, label, _, Data),
-  todo(Data, Todos),
+  findall(L, q(todos, subj, label, L), Labels),
+  todo(Labels, Todos),
   Html = h(div, [], [ h(div, [], [N]), B, h(ul, [], Todos) ]).
 
 button(B) :-
