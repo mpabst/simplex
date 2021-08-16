@@ -2,7 +2,7 @@
 
 :- dynamic(worklist/1).
 % worklist([process_events, render, tick]).
-worklist([process_events, tick]).
+worklist([process_events, create_todo, tick]).
 
 foo([quint(bar, baz, quux, M, false), quint(bar, baz, quux, N, true)]) :-
   this_tick(N),
@@ -60,8 +60,8 @@ quint('system@0#init', 'system@0#init', a, commit, true).
 quint('system@0#init', 'system@0#init', data, 'system@0#init/', true).
 quint(heads, system, head, 'system@0#init', true).
 
-% bench(0).
-% bench(N) :-
-%   time(render),
-%   Next is N - 1,
-%   bench(Next).
+bench(0).
+bench(N) :-
+  time(process_tick(_)),
+  Next is N - 1,
+  bench(Next).
