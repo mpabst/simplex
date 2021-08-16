@@ -7,7 +7,7 @@ import {
 } from 'https://unpkg.com/snabbdom@3.0.3?module'
 
 class Engine {
-  static files = ['iris', 'query', 'commit', 'work']
+  static files = ['iris', 'query', 'commit', 'work', 'todos']
 
   patch = initSnabbdom([propsModule, styleModule, eventListenersModule])
   container = document.getElementById('container')

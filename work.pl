@@ -21,7 +21,9 @@ tick([
   this_tick(T),
   S is T + 1.
 
-this_tick(This) :- q(system, tick, val, This).
+this_tick(This) :-
+  findall(O, quint(_, tick, val, O, true), L),
+  max_list(L, This).
 
 process_events(P) :-
   this_tick(T),
@@ -53,7 +55,7 @@ process_tick(Html) :-
 
 % initialize zeroth tick - if I just use content hashing for IRIs I can move
 % init/1 back to the first reactor
-quint('system@0#init/', tick, val, 0, true).
+quint('system@0#init/', tick, val, 1, true).
 quint('system@0#init', 'system@0#init', a, commit, true).
 quint('system@0#init', 'system@0#init', data, 'system@0#init/', true).
 quint(heads, system, head, 'system@0#init', true).
