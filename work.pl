@@ -34,34 +34,17 @@ process_events([]).
 
 write_event(Id, Type) :- this_tick(N), assertz(event(N, Id, Type)).
 
-% render :-
-%   index_html(Html),
-%   % !,
-%   this_tick(N),
-%   asserta(rendering(N, Html)).
-
 work(Reactor) :-
   call(Reactor, Patch),
   % commit now to make writes visible to later listeners
   do_commit(Reactor, Patch).
 
-% process_tick :-
 process_tick(Html) :-
   worklist(L),
   maplist(work, L),
   todos(Html).
-  % this_tick(N),
-  % rendering(N, Html).
 
-% initialize zeroth tick - if I just use content hashing for IRIs I can move
-% init/1 back to the first reactor
 quint('system@0#init/', tick, val, 1, true).
 quint('system@0#init', 'system@0#init', a, commit, true).
 quint('system@0#init', 'system@0#init', data, 'system@0#init/', true).
 quint(heads, system, head, 'system@0#init', true).
-
-bench(0).
-bench(N) :-
-  time(process_tick(_)),
-  Next is N - 1,
-  bench(Next).

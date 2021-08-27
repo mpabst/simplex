@@ -6,47 +6,33 @@ import {
   styleModule
 } from 'https://unpkg.com/snabbdom@3.0.3?module'
 
+import init, { consult, query } from './pkg/rusty_wam.js'
+
 class Engine {
-  static files = ['iris', 'query', 'commit', 'work', 'todos']
+  static files = ['rusty', 'iris', 'query', 'commit', 'work', 'todos']
 
   patch = initSnabbdom([propsModule, styleModule, eventListenersModule])
   container = document.getElementById('container')
 
-  session
   vDOM
 
   async init() {
-    this.session = pl.create()
     for (const file of this.constructor.files) {
       let resp = await fetch(file + '.pl')
       if (!resp.ok) console.error(resp)
       let src = await resp.text()
-      await this.consult(src)  
+      this.consult(src)
     }
-    await this.tick()
+    this.tick()
   }
 
-  async answer() {
-    return new Promise((resolve, reject) => {
-      this.session.answer({
-        success: resolve,
-        error: reject,
-        fail: reject,
-        limit: reject
-      })
-    })
+  consult(pl) {
+    consult(pl)
   }
 
-  async consult(src) {
-    return new Promise((success, error) => {
-      this.session.consult(src, { success, error })
-    })
-  }
-
-  async handleEvent(ev) {
-    await this.query(`write_event('${ev.target.id}', '${ev.type}').`)
-    await this.answer()
-    await this.tick()
+  handleEvent(ev) {
+    this.query(`write_event('${ev.target.id}', '${ev.type}').`)
+    this.tick()
   }
 
   handleEventBound = this.handleEvent.bind(this)
@@ -79,10 +65,8 @@ class Engine {
     throw `unknown: ${indicator}`
   }
 
-  async query(q) {
-    return new Promise((success, error) =>
-      this.session.query(q, { success, error })
-    )
+  query(q) {
+    return query(`?- ${q}`)
   }
 
   term2props(term) {
@@ -95,13 +79,13 @@ class Engine {
     return { on, style, props }
   }
 
-  async tick() {
-    await this.query('process_tick(Html).')
-    const rendering = await this.answer()
-    const newVDOM = this.prolog2h(rendering.links.Html)[0]
-    this.patch(this.vDOM || this.container, newVDOM)
-    this.vDOM = newVDOM
+  tick() {
+    console.log(this.query('process_tick(Html).'))
+    // const rendering = await this.answer()
+    // const newVDOM = this.prolog2h(rendering.links.Html)[0]
+    // this.patch(this.vDOM || this.container, newVDOM)
+    // this.vDOM = newVDOM
   }
 }
 
-new Engine().init()
+init().then(() => new Engine().init())
