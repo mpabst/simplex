@@ -1,3 +1,4 @@
+:- use_module(library(apply)).
 :- use_module(library(lists)).
 
 :- dynamic(worklist/1).
