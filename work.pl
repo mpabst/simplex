@@ -48,3 +48,9 @@ quint('system@0#init/', tick, val, 1, true).
 quint('system@0#init', 'system@0#init', a, commit, true).
 quint('system@0#init', 'system@0#init', data, 'system@0#init/', true).
 quint(heads, system, head, 'system@0#init', true).
+
+bench(0).
+bench(N) :-
+  time(process_tick(_)),
+  Next is N - 1,
+  bench(Next).
