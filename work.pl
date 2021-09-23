@@ -50,6 +50,8 @@ quint('system@0#init', 'system@0#init', a, commit, true).
 quint('system@0#init', 'system@0#init', data, 'system@0#init/', true).
 quint(heads, system, head, 'system@0#init', true).
 
+:- use_module(library(statistics)).
+
 bench(0).
 bench(N) :-
   time(process_tick(_)),
