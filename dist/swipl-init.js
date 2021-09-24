@@ -1,4 +1,5 @@
 let bindings = null;
+let engine = null;
 let stdin = "";
 let stdinPosition = 0;
 // We use this to provide data into
@@ -16,9 +17,9 @@ const readStdin = () => {
     return code;
   }
 };
-const output = document.getElementById("output");
-const input = document.getElementById("input");
-const editor = document.getElementById("editor");
+// const output = document.getElementById("output");
+// const input = document.getElementById("input");
+// const editor = document.getElementById("editor");
 
 // Helper function to call a query.
 const query = (bindings, input) => {
@@ -30,37 +31,39 @@ const query = (bindings, input) => {
   call(bindings, "break"); // see call.js
 };
 
-input.addEventListener(
-  "submit",
-  (e) => {
-    e.preventDefault();
-    query(bindings, e.target.elements.query.value);
-    e.target.elements.query.value = "";
-  },
-  false
-);
+// input.addEventListener(
+//   "submit",
+//   (e) => {
+//     e.preventDefault();
+//     query(bindings, e.target.elements.query.value);
+//     e.target.elements.query.value = "";
+//   },
+//   false
+// );
 
-editor.addEventListener(
-  "submit",
-  (e) => {
-    e.preventDefault();
-    FS.writeFile("/file.pl", e.target.elements.file.value);
-    query(bindings, "consult('/file.pl').");
-  },
-  false
-);
+// editor.addEventListener(
+//   "submit",
+//   (e) => {
+//     e.preventDefault();
+//     FS.writeFile("/file.pl", e.target.elements.file.value);
+//     query(bindings, "consult('/file.pl').");
+//   },
+//   false
+// );
 
 // Helper to print stdout from SWI.
 const print = (line) => {
-  output.appendChild(document.createTextNode(line + "\n"));
+  // output.appendChild(document.createTextNode(line + "\n"));
+  console.log(line);
 };
 
 // Helper to print stderr from SWI.
 const printErr = (line) => {
-  const node = document.createElement("span");
-  node.className = "output-error";
-  node.textContent = line + "\n";
-  output.appendChild(node);
+  // const node = document.createElement("span");
+  // node.className = "output-error";
+  // node.textContent = line + "\n";
+  // output.appendChild(node);
+  console.error(line);
 };
 
 // Creates bindings to the SWI foreign API.
@@ -128,17 +131,19 @@ const initialise = (bindings, module) => {
 
 // Stub Module object. Used by swipl-web.js to
 // populate the actual Module object.
-var Module = {
+window.Module = {
   noInitialRun: true,
   locateFile: (url) => `../dist/${url}`,
   print: print,
   printErr: printErr,
   preRun: [() => FS.init(readStdin)], // sets up stdin
-  onRuntimeInitialized: () => {
-    document.getElementById("top").className = undefined;
+  onRuntimeInitialized: async () => {
+    // document.getElementById("top").className = undefined;
     // Bind foreign functions to JavaScript.
     bindings = createBindings(Module);
     // Initialise SWI-Prolog.
     initialise(bindings, Module);
+    engine = new Engine()
+    await engine.init()
   },
 };
