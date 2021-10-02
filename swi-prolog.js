@@ -1,6 +1,5 @@
 export class SwiProlog {
   bindings = null
-  engine = null
   stdin = ''
   stdinPosition = 0
 
