@@ -8,6 +8,7 @@ import {
 import { parser } from './parser.js'
 
 export class Engine {
+  static RENDERING_PATH = '/rendering.pl'
   static files = ['iris', 'query', 'commit', 'work', 'todos']
 
   patch = initSnabbdom([propsModule, styleModule, eventListenersModule])
@@ -30,6 +31,7 @@ export class Engine {
   }
 
   consult(name, contents) {
+    // TODO: Put in /usr/lib ?
     const path = `/${name}.pl`
     FS.writeFile(path, contents)
     this.query(`consult('${path}').`)
@@ -44,19 +46,17 @@ export class Engine {
     return this.swipl.query(q)
   }
 
-  render(line) {
-    const match = line.match(/^Html = (.+)$/)
-    if (match) {
-      const newVDOM = this.parse(match[1].trim())
-      setTimeout(() => {
-        debugger
-        this.patch(this.vDOM ?? this.container, newVDOM)
-        this.vDOM = newVDOM
-      }, 0)
-    } else console.log(line)
+  render() {
+    const rendering =
+      new TextDecoder().decode(FS.readFile(Engine.RENDERING_PATH))
+    console.log(rendering)
+    const newVDOM = this.parse(rendering.trim())
+    this.patch(this.vDOM ?? this.container, newVDOM)
+    this.vDOM = newVDOM
   }
 
   tick() {
-    this.query('process_tick(Html).')
+    this.query('process_tick.')
+    this.render()
   }
 }

@@ -1,6 +1,8 @@
 :- use_module(library(apply)).
 :- use_module(library(lists)).
 
+rendering_path('/rendering.pl').
+
 :- dynamic(worklist/1).
 % worklist([process_events, render, tick]).
 worklist([process_events, create_todo, tick]).
@@ -40,20 +42,24 @@ work(Reactor) :-
   % commit now to make writes visible to later listeners
   do_commit(Reactor, Patch).
 
-process_tick(Html) :-
+process_tick :-
   worklist(L),
   maplist(work, L),
-  todos(Html).
+  todos(Html),
+  rendering_path(P),
+  open(P, write, Stream),
+  write_term(Stream, Html, [quoted(true)]),
+  close(Stream).
 
-quint('system@0#init/', tick, val, 1, true).
-quint('system@0#init', 'system@0#init', a, commit, true).
+quint('system@0#init/', tick,           val,  1,                true).
+quint('system@0#init', 'system@0#init', a,    commit,           true).
 quint('system@0#init', 'system@0#init', data, 'system@0#init/', true).
-quint(heads, system, head, 'system@0#init', true).
+quint(heads,           system,          head, 'system@0#init',  true).
 
 :- use_module(library(statistics)).
 
 bench(0).
 bench(N) :-
-  time(process_tick(_)),
+  time(process_tick),
   Next is N - 1,
   bench(Next).
