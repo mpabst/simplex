@@ -1,4 +1,4 @@
-:- use_module(library(lists)).
+% :- use_module(library(lists)).
 
 % tick_graph_iri(sym+, sym+, sym-) is det
 meta_iri_chars(Graph, Reactor, IRIChars) :-
